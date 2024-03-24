@@ -4,12 +4,14 @@
     - [Local File Inclusion Leading to Potential Remote Code Execution in DerbyNet's kiosk.php](#local-file-inclusion-leading-to-potential-remote-code-execution-in-derbynets-kioskphp)
     - [Unauthenticated SQL Injection via 'where' Clause in Award Document Rendering](#unauthenticated-sql-injection-via-where-clause-in-award-document-rendering)
     - [Unauthenticated SQL Injection via 'where' Clause in Racer Document Rendering](#unauthenticated-sql-injection-via-where-clause-in-racer-document-rendering)
+    - [Unauthenticated SQL Injection via 'classids' Parameter in ajax/query.slide.next.inc](#unauthenticated-sql-injection-via-classids-parameter-in-ajaxqueryslidenextinc)
     - [Unauthenticated XSS Vulnerability in ./inc/kiosks.inc](#unauthenticated-xss-vulnerability-in-inckiosksinc)
     - [Unauthenticated XSS in racer-results.php](#unauthenticated-xss-in-racer-resultsphp)
     - [Unauthenticated XSS in render-document.php](#unauthenticated-xss-in-render-documentphp)
     - [Unauthenticated XSS in photo.php](#unauthenticated-xss-in-photophp)
     - [Authenticated XSS in photo-thumbs.php](#authenticated-xss-in-photo-thumbsphp)
     - [Authenticated XSS Vulnerability in checkin.php](#authenticated-xss-vulnerability-in-checkinphp)
+    - [Authenticated XSS via 'back' Parameter in playlist.php](#authenticated-xss-via-back-parameter-in-playlistphp)
 
 
 # Introduction
@@ -25,8 +27,8 @@ This article is a narrative of my exploration, detailing the vulnerabilities I d
 In total, there are:
 
 - **1 Local File Inclusion (LFI) Vulnerability**
-- **6 Cross-Site Scripting (XSS) Vulnerabilities**
-- **2 SQL Injection (SQLi) Vulnerabilities**
+- **7 Cross-Site Scripting (XSS) Vulnerabilities**
+- **3 SQL Injection (SQLi) Vulnerabilities**
   
 
 ### Local File Inclusion Leading to Potential Remote Code Execution in DerbyNet's kiosk.php
@@ -147,6 +149,66 @@ function draw_one_racer(&$racer) {
 ```
 
 The vulnerability arises from the direct inclusion of the `$_GET['where']` parameter into the SQL statement without proper validation or sanitization. This allows attackers to alter the SQL query's logic, potentially accessing or manipulating sensitive database information unauthorizedly.
+
+---
+
+### Unauthenticated SQL Injection via 'classids' Parameter in ajax/query.slide.next.inc
+
+- **Affected Component**: Handling of slide and racer information in DerbyNet.
+- **Type of Vulnerability**: Unauthenticated SQL Injection.
+- **Impact**: Enables execution of arbitrary SQL commands through manipulation of the `classids` parameter, without the need for authentication.
+- **Location**: `ajax/query.slide.next.inc`.
+- **Endpoint**: `http://127.0.0.1:8000/action.php?query=slide.next&mode=racer&classids=1`
+
+**Detailed Vulnerability Context:**
+
+Within the file `ajax/query.slide.next.inc`, the application constructs an SQL query dynamically using the `classids` parameter from the user's request. This parameter is not sanitized before being incorporated into the SQL statement, introducing a significant risk of SQL Injection.
+
+**Vulnerable Code Snippet:**
+
+```php
+if (isset($_GET['mode'])) {
+  $mode = $_GET['mode'];
+}
+
+$racerid = 0;
+if (isset($_GET['racerid'])) {
+  $racerid = $_GET['racerid'];
+}
+
+$classids = '';
+if (isset($_GET['classids'])) {
+  $classids = $_GET['classids'];
+}
+
+...
+
+if (!$done && $mode == 'racer') {
+  $row = read_single_row('SELECT racerid, lastname, firstname, carnumber, carname, classid,'
+                         .' imagefile, carphoto FROM RegistrationInfo'
+                         .' WHERE racerid > :racerid'
+                         .'  AND passedinspection'
+                         .'  AND ((imagefile IS NOT NULL AND imagefile <> \'\') OR'
+                         .'       (carphoto IS NOT NULL AND carphoto <> \'\'))'
+                         .($classids ? ' AND classid IN ('.$classids.')' : '')
+                         .' ORDER BY racerid',
+                         array(':racerid' => $racerid),
+                         PDO::FETCH_ASSOC);
+  ...
+}
+```
+
+**SQLMap Detection and Payload:**
+
+SQLMap identified the SQL Injection vulnerability with the following payloads demonstrating the exploitability of the `classids` GET parameter:
+
+- **Boolean-based blind**:
+  - **Payload**: `query=slide.next&mode=racer&classids=1) AND 4365=4365 AND (6880=6880`
+
+- **UNION query**:
+  - **Payload**: `query=slide.next&mode=racer&classids=-3890) UNION ALL SELECT NULL,NULL,CHAR(113,107,120,122,113)||CHAR(79,97,117,85,112,79,82,85,75,114,65,66,118,100,117,107,79,118,111,104,67,105,87,86,72,110,107,119,113,86,106,107,115,100,110,109,98,77,85,115)||CHAR(113,118,120,120,113),NULL,NULL,NULL,NULL,NULL-- rDzQ`
+
+---
 
 ### Unauthenticated XSS Vulnerability in ./inc/kiosks.inc
 
@@ -321,3 +383,26 @@ In this snippet, the `$order` PHP variable is directly echoed into a JavaScript 
 The lack of proper input sanitization and output encoding in this context allows attackers to execute JavaScript code in the context of the authenticated user's session, potentially leading to unauthorized actions being performed or sensitive information being exposed.
 
 This vulnerability underscores the importance of treating all user input as untrusted and applying rigorous sanitization and encoding practices, especially when incorporating such input into executable code contexts like JavaScript.
+
+### Authenticated XSS via 'back' Parameter in playlist.php
+
+- **Affected Component**: Navigation and redirection logic within DerbyNet.
+- **Type of Vulnerability**: Cross-Site Scripting (XSS), Authenticated.
+- **Impact**: Allows execution of arbitrary JavaScript code in the context of an authenticated session.
+- **Location**: `playlist.php`.
+
+**Vulnerability Details:**
+
+In DerbyNet's `playlist.php`, an authenticated Cross-Site Scripting (XSS) vulnerability has been identified, exploiting the `back` parameter. The application fails to sanitize the `back` parameter before including it in the page output, enabling the injection and execution of arbitrary JavaScript code.
+
+**Vulnerable Code Snippet:**
+```php
+<?php make_banner('Rounds Playlist', isset($_GET['back']) ? $_GET['back'] : 'coordinator.php'); ?>
+```
+
+This code dynamically sets the redirection target based on the `back` parameter from the URL. Due to the lack of proper output encoding or sanitization, it is possible to inject a malicious script as part of the `back` parameter, which will be executed by the browser.
+
+**Exploitation Example:**
+- **URL**: `http://127.0.0.1:8000/playlist.php?back="><script>alert(1)</script>`
+
+The exploitation of this vulnerability requires an authenticated session, as the affected functionality is presumably accessible to authenticated users only. This vulnerability underscores the importance of properly sanitizing all user inputs, especially in functionalities accessible post-authentication, to mitigate the risk of XSS attacks.
