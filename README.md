@@ -13,7 +13,6 @@
     - [Authenticated XSS Vulnerability in checkin.php](#authenticated-xss-vulnerability-in-checkinphp)
     - [Authenticated XSS via 'back' Parameter in playlist.php](#authenticated-xss-via-back-parameter-in-playlistphp)
 
-
 # Introduction
 
 As of the time of writing, DerbyNet, a modest yet impactful open-source project on GitHub, has garnered nearly 100 stars, signaling a growing interest and appreciation within its community. This software, designed to streamline the management of Pinewood Derby races, has been around for several years, demonstrating its resilience and ongoing relevance. You can explore the project further through [this link](https://github.com/jeffpiazza/derbynet).
@@ -30,7 +29,6 @@ In total, there are:
 - **7 Cross-Site Scripting (XSS) Vulnerabilities**
 - **3 SQL Injection (SQLi) Vulnerabilities**
   
-
 ### Local File Inclusion Leading to Potential Remote Code Execution in DerbyNet's kiosk.php
 
 - **Affected Component**: Kiosk functionality in `kiosk.php`
@@ -66,6 +64,7 @@ This vulnerability was promptly addressed after direct communication with the pr
 
 ### Unauthenticated SQL Injection via 'where' Clause in Award Document Rendering
 
+- **CVE ID**: CVE-2024-30922
 - **Affected Component**: `print/render/award.inc` in document rendering process.
 - **Authentication**: None (Unauthenticated)
 - **Vulnerability**: SQL Injection
@@ -106,6 +105,7 @@ This SQL Injection flaw underscores the critical need for input validation and p
 
 ### Unauthenticated SQL Injection via 'where' Clause in Racer Document Rendering
 
+- **CVE ID**: CVE-2024-30923
 - **Affected Component**: Award document generation in `print/render/racer.inc`
 - **Authentication**: None (Unauthenticated)
 - **Vulnerability**: SQL Injection
@@ -154,6 +154,7 @@ The vulnerability arises from the direct inclusion of the `$_GET['where']` param
 
 ### Unauthenticated SQL Injection via 'classids' Parameter in ajax/query.slide.next.inc
 
+- **CVE ID**: CVE-2024-30928
 - **Affected Component**: Handling of slide and racer information in DerbyNet.
 - **Type of Vulnerability**: Unauthenticated SQL Injection.
 - **Impact**: Enables execution of arbitrary SQL commands through manipulation of the `classids` parameter, without the need for authentication.
@@ -212,6 +213,7 @@ SQLMap identified the SQL Injection vulnerability with the following payloads de
 
 ### Unauthenticated XSS Vulnerability in ./inc/kiosks.inc
 
+- **CVE ID**: CVE-2024-30926
 - **Affected Component**: Kiosk address handling in `./inc/kiosks.inc`
 - **Authentication**: None (Unauthenticated)
 - **Vulnerability**: Cross-Site Scripting (XSS)
@@ -250,6 +252,7 @@ The core of this vulnerability lies in the function's failure to sanitize the `i
 
 ### Unauthenticated XSS in racer-results.php
 
+- **CVE ID**: CVE-2024-30927
 - **Affected Component**: Display of racer results in `racer-results.php`
 - **Authentication**: None (Unauthenticated)
 - **Vulnerability**: Cross-Site Scripting (XSS)
@@ -282,6 +285,7 @@ The vulnerability stems from the direct inclusion of unsanitized user input (`$_
 
 ### Unauthenticated XSS in render-document.php
 
+- **CVE ID**: CVE-2024-30920
 - **Affected Component**: Document rendering in `render-document.php`
 - **Authentication**: None (Unauthenticated)
 - **Vulnerability**: Cross-Site Scripting (XSS)
@@ -303,6 +307,7 @@ The issue stems from echoing user input without sanitization in debug mode, a pr
 
 ### Unauthenticated XSS in photo.php
 
+- **CVE ID**: CVE-2024-30921
 - **Affected Component**: Photo handling in `photo.php`
 - **Authentication**: None (Unauthenticated)
 - **Vulnerability**: Cross-Site Scripting (XSS)
@@ -323,6 +328,7 @@ This vulnerability is a direct consequence of displaying debug information witho
 
 ### Authenticated XSS in photo-thumbs.php
 
+- **CVE ID**: CVE-2024-30925
 - **Affected Component**: Photo thumbnails navigation in `photo-thumbs.php`
 - **Authentication**: Required (Authenticated)
 - **Vulnerability**: Cross-Site Scripting (XSS)
@@ -355,6 +361,7 @@ This vulnerability is a direct consequence of displaying debug information witho
 
 ### Authenticated XSS Vulnerability in checkin.php
 
+- **CVE ID**: CVE-2024-30924
 - **Affected Component**: Order handling in `checkin.php`
 - **Authentication**: Required (Authenticated)
 - **Vulnerability**: Cross-Site Scripting (XSS)
@@ -386,6 +393,7 @@ This vulnerability underscores the importance of treating all user input as untr
 
 ### Authenticated XSS via 'back' Parameter in playlist.php
 
+- **CVE ID**: CVE-2024-30929
 - **Affected Component**: Navigation and redirection logic within DerbyNet.
 - **Type of Vulnerability**: Cross-Site Scripting (XSS), Authenticated.
 - **Impact**: Allows execution of arbitrary JavaScript code in the context of an authenticated session.
@@ -396,6 +404,7 @@ This vulnerability underscores the importance of treating all user input as untr
 In DerbyNet's `playlist.php`, an authenticated Cross-Site Scripting (XSS) vulnerability has been identified, exploiting the `back` parameter. The application fails to sanitize the `back` parameter before including it in the page output, enabling the injection and execution of arbitrary JavaScript code.
 
 **Vulnerable Code Snippet:**
+
 ```php
 <?php make_banner('Rounds Playlist', isset($_GET['back']) ? $_GET['back'] : 'coordinator.php'); ?>
 ```
@@ -403,6 +412,7 @@ In DerbyNet's `playlist.php`, an authenticated Cross-Site Scripting (XSS) vulner
 This code dynamically sets the redirection target based on the `back` parameter from the URL. Due to the lack of proper output encoding or sanitization, it is possible to inject a malicious script as part of the `back` parameter, which will be executed by the browser.
 
 **Exploitation Example:**
+
 - **URL**: `http://127.0.0.1:8000/playlist.php?back="><script>alert(1)</script>`
 
 The exploitation of this vulnerability requires an authenticated session, as the affected functionality is presumably accessible to authenticated users only. This vulnerability underscores the importance of properly sanitizing all user inputs, especially in functionalities accessible post-authentication, to mitigate the risk of XSS attacks.
